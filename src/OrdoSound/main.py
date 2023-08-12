@@ -47,7 +47,10 @@ if __name__ == '__main__':
                 f.write(r.content)
         title = result["track"]["title"]
         artist = result["track"]["subtitle"]
-        album = result["track"]["sections"][0]["metadata"][0]["text"]
+        try:
+            album = result["track"]["sections"][0]["metadata"][0]["text"]
+        except IndexError:
+            print(Fore.RED+"Error: album info not found. Skipping...")
         genre = result["track"]["genres"]["primary"]
 
         if " - " in title:

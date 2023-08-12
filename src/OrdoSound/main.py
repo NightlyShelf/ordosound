@@ -1,116 +1,118 @@
 from pyfiglet import Figlet
-from colorama import just_fix_windows_console, Fore
-from os import path, walk
+from colorama import Fore, just_fix_windows_console
+import os
+import sys
+from os import path, rename, chdir
 from shazam import Shazam
 from music_tag import load_file
 from requests import get
+import glob
+
+if __name__ == '__main__':
+
+    just_fix_windows_console()
+    print(Fore.LIGHTCYAN_EX + Figlet(font='roman', width=1000).renderText('OrdoSound'))
+    print(Fore.LIGHTGREEN_EX + ' by NightlyShelf ')
+    print(Fore.GREEN + ' v. 1.0 MIT License 2023')
+    print(Fore.WHITE + '')
+
+    if len(sys.argv) < 2 or (len(sys.argv) > 2 and sys.argv[2].lower() != 'y' and sys.argv[2].lower() != 'n'):
+        print(Fore.RED+"Error: incorrect arguments.")
+        input(Fore.WHITE + "Press any key to exit...")
+        sys.exit(1)
+    _path = sys.argv[1]
 
 
-# Header
-just_fix_windows_console()
-print(Fore.LIGHTCYAN_EX + Figlet(font='small').renderText('ORDOSOUND'))
-print(Fore.LIGHTGREEN_EX + ' by NightlyShelf ')
-print(Fore.GREEN + ' v. 1.0 MIT License 2023')
-print(Fore.WHITE + '<==============================================>')
+    def fix_file(filepath):
+        print(Fore.WHITE+f'File: {filepath}')
+        with open(filepath, "rb") as f:
+            file = f.read()
+        with Shazam(file) as shazam:
+            result = shazam.result
+        if 'track' not in result:
+            print(Fore.RED+"Error: Could not recognize track. Skipping...")
+            return
+        has_cover = False
+        if 'images' in result["track"]:
+            has_cover = True
+            print(Fore.BLUE+"Cover: " + result["track"]["images"]["coverarthq"])
+            url = result["track"]["images"]["coverarthq"]
+            r = get(url, allow_redirects=True)
+            with open('cover.jpg', 'wb') as f:
+                f.write(r.content)
+        title = result["track"]["title"]
+        artist = result["track"]["subtitle"]
+        album = result["track"]["sections"][0]["metadata"][0]["text"]
+        genre = result["track"]["genres"]["primary"]
+
+        if " - " in title:
+            album = artist
+            artist, title = title.split(" - ")  # Some tracks "shazaming" incorrectly
+
+        print(Fore.YELLOW+"Title: " + title)
+        print(Fore.YELLOW+"Artist: " + artist)
+        print(Fore.YELLOW+"Album: " + album)
+        print(Fore.BLUE+"Link: " + result["track"]["share"]["href"])
+
+        f = load_file(filepath)
+        f['tracktitle'] = title
+        f['artist'] = artist
+        f['genre'] = genre
+        #f['albumartist'] = artist
+        f['album'] = album
+
+        if has_cover:
+            with open(f'cover.jpg', 'rb') as cover:
+                f['artwork'] = cover.read()
+            os.remove(f'cover.jpg')
+
+            f['artwork'].first.thumbnail([64, 64])
+        else:
+            f['artwork'] = None
+        f.save()
+        print(Fore.GREEN+'Successfully applied metadata.')
+
+        chdir(path.dirname(filepath))
+        name = f'{artist} - {title}'
+        bad_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+        for char in bad_chars:
+            name = name.replace(char, '')
+        try:
+
+            rename(path.basename(filepath), f'{name}.mp3')
+        except FileExistsError:
+            i = 1
+            while True:
+                if not path.exists(f'{name} ({i}).mp3'):
+                    rename(path.basename(filepath), f'{name} ({i}).mp3')
+                    break
+                else:
+                    i += 1
+
+        print(Fore.GREEN+f'Successfully renamed to {artist} - {title}.mp3.')
 
 
-# Displaying error
-def display_error(error_text, critical=False, error_code=1):
-    print(Fore.RED + 'Error: ' + error_text)
-    if critical:
-        exit(error_code)
+    if path.isdir(_path):
+        print(Fore.WHITE+f"Folder: {_path}")
+        if not path.exists(_path):
+            print(Fore.RED+"Error: specified folder not found.")
+            input(Fore.WHITE + "Press any key to exit...")
+            sys.exit(1)
+        if sys.argv[2].lower() == 'y':
+            print(Fore.GREEN+"Recursion begin...")
+            files = glob.glob(_path + '\**\*.mp3', recursive=True)
+            for file in files:
+                fix_file(path.abspath(file))
+        else:
+            files = glob.glob(_path + '\*.mp3')
+            for file in files:
+                fix_file(path.abspath(file))
+    else:
+        print(Fore.WHITE+f"File: {_path}")
+        if not path.exists(_path):
+            print(Fore.RED+"Error: specified file not found.")
+            input(Fore.WHITE+"Press any key to exit...")
+            sys.exit(1)
+        fix_file(_path)
 
-
-# Displaying warning
-def display_warning(warning_text):
-    print(Fore.YELLOW + 'Warning: ' + warning_text)
-
-
-# File searching
-def find_files(file, search_path) -> []:
-    result = []
-    for root, dir, files in walk(search_path):
-        if file in files:
-            result.append(path.join(root, file))
-    return result
-
-
-# Selecting working directory
-dest = input('Enter the working directory: ')
-if not path.exists(dest):
-    display_error(f'"{dest}" does not exist.', True, 2)
-if path.isfile(dest):
-    display_error(f'"{dest}" is not a directory.', True, 2)
-
-
-# Checking configs
-if not input(Fore.BLUE + 'Skip searching configs? (y/N)') == 'y':
-    print(Fore.WHITE+ 'Searching for config...')
-    configs = []
-    selected_config = ""
-    isNew = False
-    try:
-        configs = find_files('ordomusic.json')
-    except Exception as ex:
-        display_error(ex.args[1], True, ex.args[0])
-
-    # Multiple configs check
-    if len(configs) > 1:
-        display_warning('Multiple configs found. Please select which one to use or enter "N" to create the new one or '
-                        'enter "S" to skip: ')
-        configs_list = ''
-        for i in range(len(configs)):
-            configs += f'[{i}]: "{configs[i]}"{";" if i != len(configs)-1 else ":"} '
-
-        # Using infinity loop to select correct variant
-        while True:
-            selected = input(configs_list)
-            if selected == 'N':
-                # New Config
-                isNew = True
-                while True:
-                    new_config = input('Enter the path for new config or leave blank to use root directory (recommended): ')
-                    if new_config == '':
-                        new_config = path.join(dest, 'ordomusic.json')
-                        try:
-                            open(new_config, 'w').close()
-                            break
-                        except Exception as ex:
-                            display_error(ex.args[1], False, ex.args[0])
-
-                    else:
-                        if not path.exists(new_config):
-                            display_warning(f'Path "{new_config}" does not exist. Please select another path.')
-                        else:
-                            new_config = path.join(new_config, 'ordomusic.json')
-                            try:
-                                open(new_config, 'w').close()
-                                break
-                            except Exception as ex:
-                                display_error(ex.args[1], False, ex.args[0])
-                break
-
-'''
-with open('','rb') as f:
-    file = f.read()
-with Shazam(file) as shazam:
-    result = shazam.result
-
-print(result["track"]["images"]["coverarthq"])
-url = result["track"]["images"]["coverarthq"]
-r = requests.get(url, allow_redirects=True)
-with open('cover.jpg','wb') as f:
-    f.write(r.content)
-print("Title: "+result["track"]["title"])
-print("Artist: "+result["track"]["subtitle"])
-print("Album: "+result["track"]["sections"][0]["metadata"][0]["text"])
-
-f = load_file('')
-f['tracktitle'] = result["track"]["title"]
-f['artist'] = result["track"]["subtitle"]
-f['album'] = result["track"]["sections"][0]["metadata"][0]["text"]
-with open('cover.jpg','rb') as cover:
-    f['artwork'] = cover.read()
-
-f['artwork'].first.thumbnail([64,64])
-f.save()'''
+    print(Fore.GREEN+"Done!")

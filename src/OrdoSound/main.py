@@ -27,8 +27,12 @@ if __name__ == '__main__':
         print(Fore.WHITE+f'File: {filepath}')
         with open(filepath, "rb") as f:
             file = f.read()
-        with Shazam(file) as shazam:
-            result = shazam.result
+        try:
+            with Shazam(file) as shazam:
+                result = shazam.result
+        except Exception:
+            print(Fore.RED+"Error: error in parsing file or unrecognised format. Skipping...")
+            return
         if 'track' not in result:
             print(Fore.RED+"Error: Could not recognize track. Skipping...")
             return

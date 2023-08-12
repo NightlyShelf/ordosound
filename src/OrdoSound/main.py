@@ -60,6 +60,7 @@ if __name__ == '__main__':
         f['genre'] = genre
         #f['albumartist'] = artist
         f['album'] = album
+        f['comment'] = ''
 
         if has_cover:
             with open(f'cover.jpg', 'rb') as cover:

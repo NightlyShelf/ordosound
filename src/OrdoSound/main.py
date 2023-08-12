@@ -108,7 +108,6 @@ if __name__ == '__main__':
             for file in files:
                 fix_file(path.abspath(file))
     else:
-        print(Fore.WHITE+f"File: {_path}")
         if not path.exists(_path):
             print(Fore.RED+"Error: specified file not found.")
             input(Fore.WHITE+"Press any key to exit...")

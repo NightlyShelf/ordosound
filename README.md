@@ -21,7 +21,7 @@ Will fix the music files in ``C:\Music\`` and in all subdirectories like ``C:\Mu
 ```commandline
 main.exe "C:\Music\track1.mp3"
 ```
-For single file.
+For a single file.
 
 ## Tests
 

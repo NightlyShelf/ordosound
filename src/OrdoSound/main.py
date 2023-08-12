@@ -1,3 +1,4 @@
+import mutagen
 from pyfiglet import Figlet
 from colorama import Fore, just_fix_windows_console
 import os
@@ -79,7 +80,11 @@ if __name__ == '__main__':
             f['artwork'].first.thumbnail([64, 64])
         else:
             f['artwork'] = None
-        f.save()
+        try:
+            f.save()
+        except mutagen.MutagenError:
+            print(Fore.RED+"Error: Unable to write access file. Skipping...")
+            return
         print(Fore.GREEN+'Successfully applied metadata.')
 
         chdir(path.dirname(filepath))

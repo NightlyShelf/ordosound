@@ -51,6 +51,7 @@ if __name__ == '__main__':
             album = result["track"]["sections"][0]["metadata"][0]["text"]
         except IndexError:
             print(Fore.RED+"Error: album info not found. Skipping...")
+            album = "Mix"
         genre = result["track"]["genres"]["primary"]
 
         if " - " in title:

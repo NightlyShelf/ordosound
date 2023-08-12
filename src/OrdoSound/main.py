@@ -8,6 +8,7 @@ from music_tag import load_file
 from requests import get
 import glob
 
+
 if __name__ == '__main__':
 
     just_fix_windows_console()
@@ -30,7 +31,7 @@ if __name__ == '__main__':
         try:
             with Shazam(file) as shazam:
                 result = shazam.result
-        except Exception:
+        except BaseException:
             print(Fore.RED+"Error: error in parsing file or unrecognised format. Skipping...")
             return
         if 'track' not in result:
